@@ -27,7 +27,7 @@
  */
 
 #include <motion_estimation_test_opencv/motion_estimator.h>
-//#define OFLOW_OUTPUT
+#define OFLOW_OUTPUT
 namespace mbzirc_task1 {
 
 MotionEstimator::MotionEstimator(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
@@ -83,6 +83,20 @@ void MotionEstimator::receiveImageCallback(
     host_temp.copyTo(gpu_first_image_);
 
 
+		//create sampling
+		int sampleDistance = 15;
+		pts_sampling_.clear();
+		pts_sampling_.reserve((width/sampleDistance)*(height/sampleDistance));
+		
+		for(int x=0;x<width;x+=sampleDistance)
+		{
+			for(int y=0;y<height;y+=sampleDistance)
+			{
+				pts_sampling_.push_back(cv::Point2f(x,y));
+			}
+		}	
+
+
     first_image_ = false;
   }
 
@@ -90,54 +104,40 @@ void MotionEstimator::receiveImageCallback(
    cv::Mat host_temp(height,width,CV_8U,(void*)&(msg->data[0]));
    host_temp.copyTo(gpu_second_image_);
 
-
-   cv::calcOpticalFlowFarneback(gpu_first_image_,
-				gpu_second_image_,
-				gpu_flow_,
-				0.5f,
-				3,
-				20,
-				2,
-				5,
-				1.0f,
-				cv::OPTFLOW_USE_INITIAL_FLOW);
-   //copy second to first
+	 cv::calcOpticalFlowPyrLK(gpu_first_image_,
+													 gpu_second_image_,
+													 pts_sampling_,
+													 pts_output_,
+													 flow_status_,
+													 flow_err_,
+													 cv::Size(20,20), //winsize
+													 1); //pyramid levels
+														
+  //copy second to first
    gpu_second_image_.copyTo(gpu_first_image_);
-
 #ifdef OFLOW_OUTPUT
    //copy result to host
-   cv::Mat host_flow(height,width,CV_32FC2);
-   gpu_flow_.copyTo(host_flow);
-   cv::Mat hsv;
-   cv::Mat xy[2];
-   cv::Mat hsv_v, hsv_h, hsv_s;
-   cv::split(host_flow,xy);
-	cv::Mat magnitude,angle;
-  cv::cartToPolar(xy[0],xy[1],magnitude, angle, true);
+	 cv::Mat oflow;
+	 cv::cvtColor(host_temp, oflow, CV_GRAY2RGB);
 
-  cv::normalize(magnitude,hsv_v,0,255,cv::NORM_MINMAX,CV_32FC1);  
-//  cv::normalize(angle,hsv_h,0,255,cv::NORM_MINMAX,CV_32FC1);
-  angle.convertTo(hsv_h,CV_32FC1);
-//  hsv_h = cv::Mat::ones(height,width,CV_32FC1)*127;
-  hsv_s = cv::Mat::ones(height,width,CV_32FC1)*255;
-//  hsv_v = cv::Mat::ones(height,width,CV_32FC1)*255;
-  std::vector<cv::Mat> to_merge;
-  to_merge.push_back(hsv_h);
-  to_merge.push_back(hsv_s);
-  to_merge.push_back(hsv_v);
-  
-  cv::merge(to_merge,hsv);
- cv::cvtColor(hsv,hsv,CV_HSV2RGB);
-  cv::Mat rgb;
-hsv.convertTo(rgb, CV_8UC3);
-//  cv::imwrite("flow.png",rgb);
+	//draw a line for each point
+	for(int i=0;i<pts_sampling_.size();i++)
+  {
+
+		if(flow_status_[i])
+{		cv::Point2f start = pts_sampling_[i];
+		cv::Point2f end = pts_output_[i];
+
+		//draw line from start to end
+		cv::line(oflow, start, end, cv::Scalar(255,0,0),2,8,0);}
+  }
 
    sensor_msgs::Image img_msg;
   img_msg.width = width;
   img_msg.height =height;
   img_msg.encoding = "rgb8";
   img_msg.step = sizeof(unsigned char)*3*width;
-  img_msg.data = std::vector<unsigned char>(rgb.datastart,rgb.dataend);
+  img_msg.data = std::vector<unsigned char>(oflow.datastart,oflow.dataend);
  pub_oflow_image_.publish(img_msg);
 
 #else

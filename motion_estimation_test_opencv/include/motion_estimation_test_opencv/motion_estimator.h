@@ -68,6 +68,10 @@ class MotionEstimator {
   cv::UMat gpu_first_image_;
   cv::UMat gpu_second_image_;
   cv::UMat gpu_flow_;
+	std::vector<cv::Point2f> pts_sampling_;
+  std::vector<cv::Point2f> pts_output_;
+  std::vector<uchar> flow_status_;
+  std::vector<float> flow_err_;
   };
 }
 #endif /* MBZIRC_TASK1_MOTION_ESTIMATION_TEST_NODE_H_ */

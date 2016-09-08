@@ -3,7 +3,7 @@ project(motion_estimation_test_opencv)
 
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_definitions(-std=c++11)
 
 find_package(OpenCV 3.1.0 REQUIRED)
