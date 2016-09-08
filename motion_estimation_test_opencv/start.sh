@@ -1,0 +1,1 @@
+rosrun motion_estimation_test_opencv motion_estimation_test_opencv_node image_raw:=/camera/image_raw
