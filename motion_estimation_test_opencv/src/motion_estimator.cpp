@@ -27,7 +27,7 @@
  */
 
 #include <motion_estimation_test_opencv/motion_estimator.h>
-
+//#define OFLOW_OUTPUT
 namespace mbzirc_task1 {
 
 MotionEstimator::MotionEstimator(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
@@ -104,6 +104,7 @@ void MotionEstimator::receiveImageCallback(
    //copy second to first
    gpu_second_image_.copyTo(gpu_first_image_);
 
+#ifdef OFLOW_OUTPUT
    //copy result to host
    cv::Mat host_flow(height,width,CV_32FC2);
    gpu_flow_.copyTo(host_flow);
@@ -138,6 +139,12 @@ hsv.convertTo(rgb, CV_8UC3);
   img_msg.step = sizeof(unsigned char)*3*width;
   img_msg.data = std::vector<unsigned char>(rgb.datastart,rgb.dataend);
  pub_oflow_image_.publish(img_msg);
+
+#else
+ //publish empty to measure hz
+  sensor_msgs::Image empty_msg;
+   pub_oflow_image_.publish(empty_msg);
+#endif
   // ROS_WARN("Subsequent pass");
 }
 
